@@ -1,0 +1,8 @@
+{
+  "name": "Camera Object AR & Voice Translator",
+  "description": "A modern AI-powered object identifier and instant voice translator that uses your camera and microphone for multi-language learning.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}
