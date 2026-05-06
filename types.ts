@@ -12,6 +12,51 @@ export interface VocabularyBreakdown {
   meaning_vi: string;
 }
 
+export interface FoodAdditive {
+  code: string;
+  name: string;
+  function: string;
+  harmful_effects: string;
+  dosage: string;
+  metabolism_time: string;
+  long_term_risks: string;
+}
+
+export interface ExpertAnalysis {
+  scientific_en?: string;
+  scientific_vi?: string;
+  medical_en?: string;
+  medical_vi?: string;
+  technical_en?: string;
+  technical_vi?: string;
+  educational_en?: string;
+  educational_vi?: string;
+  additives?: FoodAdditive[];
+  fashion?: {
+    style_analysis_en: string;
+    style_analysis_vi: string;
+    age_group_en: string;
+    age_group_vi: string;
+    estimated_price_en: string;
+    estimated_price_vi: string;
+    skin_tone_compatibility_en: string;
+    skin_tone_compatibility_vi: string;
+  };
+}
+
+export interface Exercise {
+  type: 'vocabulary' | 'grammar';
+  question: string;
+  options: string[];
+  correct_answer: string;
+  explanation: string;
+}
+
+export interface MainLesson {
+  title: string;
+  content: string;
+}
+
 export interface RecognitionResult {
   en: string;
   ipa: string;
@@ -24,8 +69,11 @@ export interface RecognitionResult {
   predictions_vi?: string;
   grammar_analysis: GrammarToken[];
   vocabulary_breakdown: VocabularyBreakdown[];
+  expert_insights?: ExpertAnalysis;
   is_human: boolean;
   box_2d: [number, number, number, number]; // [ymin, xmin, ymax, xmax] 0-1000
+  exercises: Exercise[];
+  main_lessons: MainLesson[];
 }
 
 export interface VocabularyItem {
