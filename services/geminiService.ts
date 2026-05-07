@@ -12,7 +12,7 @@ export const analyzeMedia = async (
   const pureBase64 = base64Data.split(',')[1] || base64Data;
 
   const response = await ai.models.generateContent({
-    model: 'gemini-3.1-pro-preview',
+    model: 'gemini-3-flash-preview',
     contents: {
       parts: [
         {
@@ -184,7 +184,7 @@ export const analyzeMedia = async (
 
 export const translateText = async (text: string, fromLang: string, toLang: string): Promise<TranslationResponse> => {
   const response = await ai.models.generateContent({
-    model: 'gemini-3.1-pro-preview',
+    model: 'gemini-3-flash-preview',
     contents: `Dịch văn bản sau: "${text}" từ ${fromLang} sang ${toLang}. Trả về JSON theo schema.`,
     config: {
       responseMimeType: "application/json",
@@ -238,7 +238,7 @@ export const translateText = async (text: string, fromLang: string, toLang: stri
 
 export const lookupWord = async (word: string, context: string): Promise<any> => {
   const response = await ai.models.generateContent({
-    model: 'gemini-3.1-pro-preview',
+    model: 'gemini-3-flash-preview',
     contents: `Tra cứu từ "${word}" trong ngữ cảnh: "${context}". Trả về JSON {term, ipa, meaning_vi, explanation}.`,
     config: {
       responseMimeType: "application/json",
@@ -279,7 +279,7 @@ export const identifyPoint = async (
     : `ĐIỂM CHỌN [x=${xmin.toFixed(1)}%, y=${ymin.toFixed(1)}%]`;
 
   const response = await ai.models.generateContent({
-    model: 'gemini-3.1-pro-preview',
+    model: 'gemini-3-flash-preview',
     contents: {
       parts: [
         {
