@@ -12,7 +12,7 @@ export const analyzeMedia = async (
   const pureBase64 = base64Data.split(',')[1] || base64Data;
 
   const response = await ai.models.generateContent({
-    model: 'gemini-3-flash-preview',
+    model: 'gemini-3.1-pro-preview',
     contents: {
       parts: [
         {
@@ -22,43 +22,30 @@ export const analyzeMedia = async (
           },
         },
         {
-          text: `Bạn là một chuyên gia bách khoa toàn thư và cố vấn chuyên môn cao cấp.
-          LĨNH VỰC TRỌNG TÂM: ${topic}.
-          YÊU CẦU RIÊNG TỪ NGƯỜI DÙNG: ${userPrompt || 'Không có yêu cầu riêng'}.
+          text: `Bạn là một chuyên gia bách khoa toàn thư và cố vấn giáo dục đa ngôn ngữ.
+          CHỦ ĐỀ: ${topic}.
+          YÊU CẦU: ${userPrompt || 'Phân tích chi tiết đối tượng/bối cảnh'}.
           
-          Hãy phân tích đối tượng hoặc hành động trong ảnh/video một cách cực kỳ chuyên sâu dựa trên lĩnh vực trọng tâm và yêu cầu người dùng nếu có.
+          HÃY PHÂN TÍCH CHUYÊN SÂU:
+          1. Định danh chính xác (EN+IPA+VI).
+          2. Mô tả bối cảnh (Details): EN (văn phong học thuật) và VI (dễ hiểu). Mỗi bản tối đa 150 từ.
+          3. EXPERT INSIGHTS (Bản EN và VI):
+             - Science: Phân loại, đời sống, vật lý.
+             - Medical/Health: An toàn, dinh dưỡng, sức khỏe.
+             - Tech: Cấu tạo, nguyên lý.
+             - Education: Ý nghĩa giáo dục.
+             - Fashion (nếu có): Style, age, price, skin tone.
+          4. PHỤ GIA THỰC PHẨM (Additives): Nếu có mã số như E102, 451i... hãy phân tích độc tính, liều lượng an toàn (ADI), thời gian đào thải và rủi ro lâu dài.
+          5. NGÔN NGỮ: Phân tích ngữ pháp và 5 từ vựng then chốt.
+          6. THỰC HÀNH: 3 câu hỏi trắc nghiệm (options là mảng chuỗi).
+          7. BÀI HỌC: 3 điểm mấu chốt.
           
-          YÊU CẦU CHI TIẾT:
-          1. Tên định danh (EN+IPA+VI).
-          2. Mô tả bối cảnh và ngoại hình cực kỳ chi tiết.
-          3. PHÂN TÍCH CHUYÊN GIA (expert_insights): Mỗi lĩnh vực cần có cả 2 bản: [field]_en và [field]_vi.
-             - Scientific: Giá trị khoa học, phân loại, đặc điểm sinh học/vật lý.
-             - Medical: Tác động sức khỏe, y tế hoặc an toàn.
-             - Technical: Cấu tạo kỹ thuật, công nghệ, cách vận hành.
-             - Educational: Giá trị giáo dục, bài học rút ra.
-             - Fashion: Nếu liên quan thời trang, phân tích: style_analysis, age_group, estimated_price, skin_tone_compatibility (mỗi cái đều EN và VI).
-             
-          4. PHÂN TÍCH CHẤT PHỤ GIA (additives) - CỰC KỲ QUAN TRỌNG:
-             Nếu phát hiện mã số phụ gia thực phẩm (ví dụ: 451i, E621, 211, 452, 635, v.v.):
-             - Mỗi chất phải được liệt kê vào mảng 'additives'.
-             - Phân tích dưới góc độ chuyên gia độc tính học & dinh dưỡng:
-               + code: Mã số (vd: 451i).
-               + name: Tên hóa học đầy đủ.
-               + function: Tác dụng cụ thể trong thực phẩm (vd: tạo xốp, bảo quản).
-               + harmful_effects: Tác hại trực tiếp đến sức khỏe.
-               + dosage: Liều lượng ADI (nếu có) và giới hạn an toàn.
-               + metabolism_time: Thời gian cơ thể cần để chuyển hóa/đào thải hoàn toàn.
-               + long_term_risks: Hệ lụy khi dùng lâu dài/quá liều (bệnh lý tiềm tàng).
+          RÀO CẢN KỸ THUẬT QUAN TRỌNG:
+          - KHÔNG ĐƯỢC LẶP LẠI: Tuyệt đối không lặp lại cùng một câu hoặc đoạn văn. 
+          - KHÔNG HALLUCINATION: Chỉ nói những gì chắc chắn.
+          - NGẮN GỌN & SÚC TÍCH: Tập trung vào kiến thức giá trị cao.
           
-          5. PHÂN TÍCH NGỮ PHÁP & TỪ VỰNG: Như một giảng viên ngôn ngữ.
-          6. BÀI TẬP THỰC HÀNH (exercises): Tạo ra 3-5 câu hỏi trắc nghiệm (về từ vựng hoặc ngữ pháp) dựa trên nội dung phân tích.
-          7. BÀI HỌC CHÍNH (main_lessons): 3 bài học hoặc kiến thức then chốt cần ghi nhớ.
-          
-          LƯU Ý QUAN TRỌNG:
-          - TUYỆT ĐỐI KHÔNG ĐƯỢC LẶP LẠI TỪ VỰNG: Tránh lặp lại cùng một cụm từ vô nghĩa hoặc lỗi lặp từ hệ thống. Văn phong phải trôi chảy, đa dạng.
-          - KIẾM TRA LẠI NỘI DUNG TRƯỚC KHI TRẢ VỀ: Đảm bảo không có các đoạn văn bị treo hoặc lặp lại vô tận.
-          
-          LUÔN TRẢ VỀ JSON HỢP LỆ. Nếu không có phụ gia, trả về mảng 'additives' rỗng.`,
+          TRẢ VỀ JSON HỢP LỆ.`,
         },
       ],
     },
@@ -182,17 +169,23 @@ export const analyzeMedia = async (
   try {
     const text = response.text;
     if (!text) throw new Error("AI không tìm thấy kết quả");
-    return JSON.parse(text) as RecognitionResult;
-  } catch (parseError) {
-    console.error("Analysis Parse Error:", parseError);
+    let cleanText = text.trim();
+    if (cleanText.startsWith('```json')) {
+      cleanText = cleanText.replace(/^```json\n?/, '').replace(/\n?```$/, '');
+    } else if (cleanText.startsWith('```')) {
+      cleanText = cleanText.replace(/^```\n?/, '').replace(/\n?```$/, '');
+    }
+    return JSON.parse(cleanText) as RecognitionResult;
+  } catch (err: any) {
+    console.error("Analysis Parse Error:", err);
     throw new Error("Không thể xử lý dữ liệu từ AI. Hãy thử lại với góc quay khác.");
   }
 };
 
 export const translateText = async (text: string, fromLang: string, toLang: string): Promise<TranslationResponse> => {
   const response = await ai.models.generateContent({
-    model: 'gemini-3-flash-preview',
-    contents: `Phân tích và dịch đoạn văn bản sau: "${text}" từ ngôn ngữ ${fromLang} sang ${toLang}. Trả về JSON.`,
+    model: 'gemini-3.1-pro-preview',
+    contents: `Dịch văn bản sau: "${text}" từ ${fromLang} sang ${toLang}. Trả về JSON theo schema.`,
     config: {
       responseMimeType: "application/json",
       responseSchema: {
@@ -245,8 +238,8 @@ export const translateText = async (text: string, fromLang: string, toLang: stri
 
 export const lookupWord = async (word: string, context: string): Promise<any> => {
   const response = await ai.models.generateContent({
-    model: 'gemini-3-flash-preview',
-    contents: `Tra cứu từ vựng "${word}" trong ngữ cảnh: "${context}". Trả về JSON gồm: term, ipa, meaning_vi, explanation.`,
+    model: 'gemini-3.1-pro-preview',
+    contents: `Tra cứu từ "${word}" trong ngữ cảnh: "${context}". Trả về JSON {term, ipa, meaning_vi, explanation}.`,
     config: {
       responseMimeType: "application/json",
       responseSchema: {
@@ -282,11 +275,11 @@ export const identifyPoint = async (
   if (ymax < ymin) [ymin, ymax] = [ymax, ymin];
 
   const locationDesc = isRegion 
-    ? `VÙNG CHỌN (Bounding Box): ymin=${ymin.toFixed(1)}%, xmin=${xmin.toFixed(1)}%, ymax=${ymax.toFixed(1)}%, xmax=${xmax.toFixed(1)}%`
-    : `TỌA ĐỘ ĐIỂM: x=${xmin.toFixed(1)}%, y=${ymin.toFixed(1)}%`;
+    ? `VÙNG CHỌN [ymin=${ymin.toFixed(1)}%, xmin=${xmin.toFixed(1)}%, ymax=${ymax.toFixed(1)}%, xmax=${xmax.toFixed(1)}%]`
+    : `ĐIỂM CHỌN [x=${xmin.toFixed(1)}%, y=${ymin.toFixed(1)}%]`;
 
   const response = await ai.models.generateContent({
-    model: 'gemini-3-flash-preview',
+    model: 'gemini-3.1-pro-preview',
     contents: {
       parts: [
         {
@@ -296,19 +289,18 @@ export const identifyPoint = async (
           },
         },
         {
-          text: `Bạn là Hệ thống Nhận diện Vật thể thông minh.
-          Người dùng đã chọn một ${locationDesc} trong hình ảnh/video đính kèm.
-          Tọa độ (0,0) là góc trên bên trái, (100,100) là góc dưới bên phải.
+          text: `Bạn là Hệ thống Nhận diện Vật thể.
+          Đối tượng tại ${locationDesc}. Tọa độ 0-100.
+          CHỦ ĐỀ: ${originalTopic}.
           
-          NHIỆM VỤ CỦA BẠN:
-          1. Xác định CHÍNH XÁC đối tượng hoặc bộ phận chủ đạo bên trong ${isRegion ? 'vùng chọn này' : 'vị trí này'}.
-          2. Cung cấp thông tin chi tiết về đối tượng đó bao gồm: Tên tiếng Anh, phiên âm IPA, nghĩa tiếng Việt, và các phân tích chuyên môn (Expert Insights). Phân tích chuyên môn phải có bản Việt (_vi) và Anh (_en).
-          3. Quan trọng: Trả về box_2d theo định dạng [ymin, xmin, ymax, xmax] từ 0-1000 bao quanh đối tượng vừa xác định.
-          4. Ngữ cảnh tổng quát của toàn cảnh là: ${originalTopic}.
+          YÊU CẦU:
+          1. Xác định đối tượng tại vị trí đó.
+          2. Cung cấp EN, IPA, VI, Example, Details, Expert Insights, Grammar, Vocabulary, Exercises, Lessons.
+          3. Trả về box_2d [ymin, xmin, ymax, xmax] từ 0-1000 bao quanh đối tượng.
           
-          LUÔN TRẢ VỀ JSON HỢP LỆ THEO ĐÚNG CẤU TRÚC RECOGNITIONRESULT.`
-        }
-      ]
+          TRẢ VỀ JSON HỢP LỆ. KHÔNG LẶP LẠI NỘI DUNG.`,
+        },
+      ],
     },
     config: {
       responseMimeType: "application/json",
@@ -422,5 +414,20 @@ export const identifyPoint = async (
 
   const text = response.text;
   if (!text) throw new Error("AI không tìm thấy kết quả cho điểm này");
-  return JSON.parse(text) as RecognitionResult;
+
+  // Clean and parse
+  try {
+    const cleaned = text.replace(/```json\n?|\n?```/g, '').trim();
+    return JSON.parse(cleaned) as RecognitionResult;
+  } catch (e) {
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      try {
+        return JSON.parse(jsonMatch[0]) as RecognitionResult;
+      } catch (e2) {
+        throw new Error("Không thể xử lý dữ liệu vùng chọn từ AI.");
+      }
+    }
+    throw new Error("AI trả về định dạng không hợp lệ cho vùng chọn.");
+  }
 };

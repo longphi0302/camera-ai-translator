@@ -320,6 +320,8 @@ const App: React.FC = () => {
   const [selectedTopic, setSelectedTopic] = useState(TOPICS[0]);
   const [customPrompt, setCustomPrompt] = useState("");
   const [isPlayingAll, setIsPlayingAll] = useState(false);
+  const isPlayingAllRef = useRef(false);
+  useEffect(() => { isPlayingAllRef.current = isPlayingAll; }, [isPlayingAll]);
   const [isVideoPlaying, setIsVideoPlaying] = useState(true);
   const [isVideoMuted, setIsVideoMuted] = useState(true);
   const playbackVideoRef = useRef<HTMLVideoElement>(null);
@@ -506,236 +508,20 @@ const App: React.FC = () => {
     playQueueRef.current = queue;
 
     const processQueue = () => {
-      if (playQueueRef.current.length === 0) {
+      if (!isPlayingAllRef.current || playQueueRef.current.length === 0) {
         setIsPlayingAll(false);
         return;
       }
       const item = playQueueRef.current.shift()!;
       handleSpeech(item.text, item.lang, item.id, () => {
-        setTimeout(processQueue, 500);
+        setTimeout(processQueue, 600);
       });
     };
 
-    window.speechSynthesis.cancel();
     processQueue();
   };
 
-  const downloadHtmlReport = () => {
-    if (!result || !capturedMedia) return;
 
-    const htmlContent = `
-<!DOCTYPE html>
-<html lang="vi">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Báo cáo: ${result.en}</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
-    <style>
-        body { font-family: 'Inter', sans-serif; background-color: #0b0c10; color: #fff; line-height: 1.6; }
-        .glass { background: rgba(255, 255, 255, 0.03); backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 40px; }
-        .highlight { background: #22d3ee; color: #000; padding: 0 4px; border-radius: 8px; font-weight: 800; transition: all 0.3s; }
-        .token { display: inline-block; padding: 2px 8px; border-radius: 8px; font-size: 0.8rem; font-weight: bold; margin-bottom: 4px; }
-        .mono { font-family: 'JetBrains Mono', monospace; }
-        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
-        .speaking { border-color: #22d3ee; box-shadow: 0 0 20px rgba(34, 211, 238, 0.2); }
-    </style>
-</head>
-<body class="p-6 md:p-12 max-w-5xl mx-auto pb-32">
-    <header class="mb-12 text-center">
-        <div class="inline-block px-4 py-1 rounded-full border border-cyan-500/30 text-cyan-400 text-[10px] font-black uppercase tracking-widest mb-4">Gemini AR Lens Report</div>
-        <h1 id="title-en" class="text-6xl md:text-7xl font-black text-white tracking-tighter mb-2 italic">${result.en}</h1>
-        <p class="text-2xl mono text-cyan-400/60 mb-4">${result.ipa}</p>
-        <h2 id="title-vi" class="text-3xl font-bold text-white/40">${result.vi}</h2>
-    </header>
-
-    <div class="glass overflow-hidden shadow-2xl mb-12">
-        ${mediaType === 'video' 
-            ? `<video src="${capturedMedia}" controls class="w-full h-auto max-h-[600px] object-contain bg-black"></video>` 
-            : `<img src="${capturedMedia}" class="w-full h-auto max-h-[600px] object-contain bg-black" />`
-        }
-    </div>
-
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <!-- Main Analysis -->
-        <div class="lg:col-span-2 space-y-8">
-            <section class="glass p-8">
-                <h3 class="text-cyan-400 font-black uppercase text-[10px] tracking-widest mb-6">Mô tả Chi tiết (Analysis)</h3>
-                <p id="det-en" class="text-3xl font-bold text-white leading-tight mb-6">${result.details_en}</p>
-                <div class="h-px bg-white/5 mb-6"></div>
-                <p id="det-vi" class="text-xl text-white/50">${result.details_vi}</p>
-            </section>
-
-            <section class="glass p-8">
-                <h3 class="text-purple-400 font-black uppercase text-[10px] tracking-widest mb-6">Ngữ pháp (Grammar Analysis)</h3>
-                <div class="flex flex-wrap gap-4">
-                    ${(result.grammar_analysis || []).map(g => `
-                        <div class="p-4 rounded-3xl bg-white/5 border border-white/5 flex flex-col gap-1">
-                            <span class="text-[10px] font-black uppercase tracking-widest opacity-40">${g.type}</span>
-                            <span class="text-lg font-bold">${g.text}</span>
-                            <span class="text-xs italic text-cyan-400">${g.explanation_vi}</span>
-                        </div>
-                    `).join('')}
-                </div>
-            </section>
-
-            <section class="glass p-8">
-                <h3 class="text-yellow-400 font-black uppercase text-[10px] tracking-widest mb-6">Ví dụ tiêu biểu (Usage Example)</h3>
-                <p id="ex-en" class="text-2xl font-black italic text-white/90 mb-4">"${result.example_en}"</p>
-                <p id="ex-vi" class="text-lg text-white/30">→ ${result.example_vi}</p>
-            </section>
-
-            ${result.main_lessons?.length ? `
-                <section class="glass p-8 border-purple-500/20">
-                    <h3 class="text-purple-400 font-black uppercase text-[10px] tracking-widest mb-6">Bài học Cốt lõi (Main Lessons)</h3>
-                    <div class="space-y-6">
-                        ${(result.main_lessons || []).map(l => `
-                            <div>
-                                <h4 class="text-xl font-bold text-white mb-2">${l.title}</h4>
-                                <p class="text-white/60 text-sm">${l.content}</p>
-                            </div>
-                        `).join('')}
-                    </div>
-                </section>
-            ` : ''}
-
-            ${result.exercises?.length ? `
-                <section class="glass p-8 border-yellow-500/20">
-                    <h3 class="text-yellow-400 font-black uppercase text-[10px] tracking-widest mb-6">Luyện tập (Practice)</h3>
-                    <div class="space-y-8">
-                        ${result.exercises.map((ex, i) => `
-                            <div class="space-y-4">
-                                <p class="text-lg font-bold">${i + 1}. ${ex.question}</p>
-                                <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
-                                    ${ex.options.map(opt => `
-                                        <div class="p-3 rounded-xl bg-white/5 border border-white/5 text-sm ${opt === ex.correct_answer ? 'border-green-500/50 text-green-400' : ''}">
-                                            ${opt}
-                                        </div>
-                                    `).join('')}
-                                </div>
-                                <p class="text-xs text-white/40 italic">Giải thích: ${ex.explanation}</p>
-                            </div>
-                        `).join('')}
-                    </div>
-                </section>
-            ` : ''}
-
-            ${result.expert_insights?.additives?.length ? `
-                <section class="space-y-4">
-                    <h3 class="text-red-500 font-black uppercase text-[10px] tracking-widest flex items-center gap-2">
-                        <span>Toxicology Analysis</span>
-                    </h3>
-                    ${(result.expert_insights?.additives || []).map((a, i) => `
-                        <div class="glass p-8 border-red-500/20 bg-red-500/5">
-                            <div class="flex items-center gap-4 mb-6">
-                                <div class="w-16 h-16 bg-red-500 text-black flex items-center justify-center rounded-2xl font-black text-2xl">${a.code}</div>
-                                <div>
-                                    <h4 class="text-2xl font-black text-white">${a.name}</h4>
-                                    <span class="text-[10px] font-bold text-red-400/60 uppercase tracking-widest">High risk additive</span>
-                                </div>
-                            </div>
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 text-sm">
-                                <div class="bg-black/20 p-4 rounded-2xl"><span class="block text-[8px] uppercase font-black opacity-40 mb-1">Tác dụng</span>${a.function}</div>
-                                <div class="bg-red-950/20 p-4 rounded-2xl"><span class="block text-[8px] uppercase font-black text-red-400 mb-1">Tác hại</span>${a.harmful_effects}</div>
-                                <div class="bg-black/20 p-4 rounded-2xl"><span class="block text-[8px] uppercase font-black opacity-40 mb-1">Đào thải</span>${a.metabolism_time}</div>
-                                <div class="bg-red-500/10 p-4 rounded-2xl"><span class="block text-[8px] uppercase font-black text-red-300 mb-1">Hệ lụy lâu dài</span>${a.long_term_risks}</div>
-                            </div>
-                        </div>
-                    `).join('')}
-                </section>
-            ` : ''}
-        </div>
-
-        <!-- Sidebar Insights -->
-        <div class="space-y-6">
-                    ${result.expert_insights?.scientific ? `
-                <div class="glass p-6 border-blue-500/10">
-                    <h3 class="text-blue-400 font-extrabold uppercase text-[10px] tracking-widest mb-3">Scientific Insight</h3>
-                    <p id="sci-text" class="text-sm leading-relaxed opacity-70">${result.expert_insights.scientific}</p>
-                </div>
-            ` : ''}
-
-            ${result.expert_insights?.technical ? `
-                <div class="glass p-6 border-cyan-500/10">
-                    <h3 class="text-cyan-400 font-extrabold uppercase text-[10px] tracking-widest mb-3">Technical Data</h3>
-                    <p id="tech-text" class="text-sm leading-relaxed opacity-70">${result.expert_insights.technical}</p>
-                </div>
-            ` : ''}
-
-            <div class="glass p-6">
-                <h3 class="text-white/20 font-extrabold uppercase text-[10px] tracking-widest mb-4">Vocabulary Breakdown</h3>
-                <div class="space-y-4">
-                    ${(result.vocabulary_breakdown || []).map(v => `
-                        <div class="border-b border-white/5 pb-3">
-                            <span class="text-lg font-bold block">${v.term}</span>
-                            <span class="text-[10px] mono opacity-40">${v.ipa}</span>
-                            <p class="text-sm text-cyan-400/80">${v.meaning_vi}</p>
-                        </div>
-                    `).join('')}
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <footer class="fixed bottom-0 left-0 w-full p-8 flex justify-center pointer-events-none">
-        <button onclick="playAll()" class="pointer-events-auto bg-cyan-500 text-black px-12 py-6 rounded-full font-black text-xl shadow-[0_0_50px_rgba(34,211,238,0.4)] hover:scale-105 active:scale-95 transition-all">
-            PHÁT BÁO CÁO GIỌNG NÓI
-        </button>
-    </footer>
-
-    <script>
-        const synth = window.speechSynthesis;
-        function play(text, lang, id) {
-            synth.cancel();
-            const utter = new SpeechSynthesisUtterance(text);
-            utter.lang = lang;
-            const el = document.getElementById(id);
-            utter.onstart = () => { if(el) el.classList.add('highlight', 'speaking'); el?.scrollIntoView({behavior:'smooth', block:'center'}); };
-            utter.onend = () => { if(el) el.classList.remove('highlight', 'speaking'); };
-            synth.speak(utter);
-            return utter;
-        }
-
-        async function playAll() {
-            const queue = [
-                {t: "${result.en}", l: "en-US", id: "title-en"},
-                {t: "${result.vi}", l: "vi-VN", id: "title-vi"},
-                ${result.expert_insights?.scientific ? `{t: "Phân tích khoa học: ${result.expert_insights.scientific.replace(/"/g, "'")}", l: "vi-VN", id: "sci-text"},` : ''}
-                ${result.expert_insights?.technical ? `{t: "Cấu tạo kỹ thuật: ${result.expert_insights.technical.replace(/"/g, "'")}", l: "vi-VN", id: "tech-text"},` : ''}
-                {t: "Mô tả chi tiết bằng tiếng Anh: ${result.details_en.replace(/"/g, "'")}", l: "en-US", id: "det-en"},
-                {t: "Bản dịch tiếng Việt: ${result.details_vi.replace(/"/g, "'")}", l: "vi-VN", id: "det-vi"},
-                {t: "Câu ví dụ: ${result.example_en.replace(/"/g, "'")}", l: "en-US", id: "ex-en"},
-                {t: "Nghĩa là: ${result.example_vi.replace(/"/g, "'")}", l: "vi-VN", id: "ex-vi"}
-            ];
-
-            let i = 0;
-            function next() {
-                if(i >= queue.length) return;
-                const item = queue[i++];
-                const u = play(item.t, item.l, item.id);
-                u.onend = () => {
-                    const el = document.getElementById(item.id);
-                    if(el) el.classList.remove('highlight', 'speaking');
-                    setTimeout(next, 800);
-                };
-            }
-            next();
-        }
-    </script>
-</body>
-</html>`;
-
-    const blob = new Blob([htmlContent], { type: 'text/html' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `${result.en.replace(/[^a-z0-9]/gi, '_')}_MasterReport.html`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-  };
     
   const handleWordLookup = async (word: string) => {
     if (!result) return;
@@ -979,32 +765,42 @@ const App: React.FC = () => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const base64 = event.target?.result as string;
-      const isVideo = file.type.startsWith('video');
-      setMediaType(isVideo ? 'video' : 'image');
-      setIsCameraActive(false);
-      processMedia(base64, file.type);
-    };
-    reader.readAsDataURL(file);
+    const isVideo = file.type.startsWith('video');
+    const mediaUrl = URL.createObjectURL(file);
+    
+    setMediaType(isVideo ? 'video' : 'image');
+    setIsCameraActive(false);
+    
+    // For images, we still need base64 for processing if we don't want to change processMedia too much
+    // but for videos, we definitely want the blob URL
+    if (isVideo) {
+      processMedia(mediaUrl, file.type);
+    } else {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const base64 = event.target?.result as string;
+        processMedia(base64, file.type);
+      };
+      reader.readAsDataURL(file);
+    }
+    
     e.target.value = '';
   };
 
-  const processMedia = async (base64Media: string, mimeType: string) => {
+  const processMedia = async (mediaSrc: string, mimeType: string) => {
     setIsIdentifying(true);
-    setCapturedMedia(base64Media);
+    setCapturedMedia(mediaSrc);
     setResult(null);
     setError(null);
     setDebugStatus(`Khởi động phân tích theo chủ đề ${selectedTopic}...`);
     try {
-      let analysisData = base64Media;
+      let analysisData = mediaSrc;
       let analysisMime = mimeType;
 
       if (mimeType.startsWith('video/')) {
         setDebugStatus("Đang trích xuất ảnh từ video để tăng tốc độ...");
         try {
-          analysisData = await getVideoFirstFrame(base64Media);
+          analysisData = await getVideoFirstFrame(mediaSrc);
           analysisMime = 'image/jpeg';
           setDebugStatus("Trích xuất xong. Đang gửi dữ liệu đến AI...");
         } catch (vErr: any) {
@@ -1015,6 +811,8 @@ const App: React.FC = () => {
         setDebugStatus("Đang gửi hình ảnh đến AI...");
       }
 
+      // If analysisData is still a blob URL (for some reason), we'd need to convert to base64 here
+      // but analyzeMedia expects base64. getVideoFirstFrame returns base64.
       const aiResult = await analyzeMedia(analysisData, analysisMime, selectedTopic, customPrompt);
       setResult(aiResult);
       setDebugStatus("Hoàn tất phân tích!");
@@ -1050,7 +848,7 @@ const App: React.FC = () => {
     rec.start();
   };
 
-  const handleDownload = () => {
+  const downloadHtmlReport = () => {
     if (!result) return;
 
     const htmlContent = `
@@ -1059,174 +857,358 @@ const App: React.FC = () => {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gemini AR Lens - ${result.en}</title>
+    <title>Gemini AI Learning - ${result.en}</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Inter', sans-serif; background-color: #000; color: white; margin: 0; padding: 20px; }
-        .glass { background: rgba(25, 25, 25, 0.6); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); }
+        :root {
+            --cyan: #22d3ee;
+            --cyan-dark: #083344;
+        }
+        body { 
+            font-family: 'Inter', sans-serif; 
+            background-color: #050505; 
+            color: #f8fafc; 
+            margin: 0; 
+            padding: 0;
+            overflow-x: hidden;
+        }
+        .glass { background: rgba(15, 15, 15, 0.7); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.05); }
+        .highlight { background-color: #facc15; color: #000; padding: 0 4px; border-radius: 4px; font-weight: 800; box-shadow: 0 0 20px rgba(250,204,21,0.4); }
+        .tab-active { color: var(--cyan); border-bottom: 2px solid var(--cyan); }
         .no-scrollbar::-webkit-scrollbar { display: none; }
-        .highlight { background-color: #facc15; color: #000; padding: 0 2px; border-radius: 4px; box-shadow: 0 0 15px rgba(250,204,21,0.6); font-weight: 700; transition: all 0.1s ease; }
+        .exercise-card { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+        .exercise-card:hover { transform: translateY(-4px); border-color: rgba(34, 211, 238, 0.3); }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .animate-in { animation: fadeIn 0.5s ease-out forwards; }
     </style>
 </head>
-<body class="min-h-screen flex flex-col items-center py-10">
-    <div class="max-w-2xl w-full glass rounded-[48px] border border-cyan-500/20 shadow-2xl overflow-hidden mb-10">
-        ${capturedMedia ? `<img src="${capturedMedia}" class="w-full h-80 object-cover border-b border-cyan-500/20" />` : ''}
-        
-        <div class="p-8 md:p-12">
-            <div class="flex justify-between items-start mb-10">
-                <div class="flex-1">
-                    <h1 id="title-en" class="text-5xl md:text-6xl font-black text-cyan-400 leading-tight mb-2">${result.en}</h1>
-                    <p class="text-xl font-mono opacity-40 mb-4">${result.ipa}</p>
-                    <p class="text-4xl font-black text-white/90">${result.vi}</p>
+<body class="pb-20">
+    <!-- Header/Hero -->
+    <div class="relative w-full h-[50vh] overflow-hidden">
+        ${capturedMedia ? `
+            <img src="${capturedMedia}" class="w-full h-full object-cover opacity-60 scale-105" />
+            <div class="absolute inset-0 bg-gradient-to-t from-[#050505] via-transparent to-transparent"></div>
+        ` : ''}
+        <div class="absolute bottom-0 left-0 w-full p-8 md:p-16 max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-end gap-8">
+            <div class="animate-in" style="animation-delay: 0.1s">
+                <div class="flex items-center gap-3 mb-4">
+                    <span class="px-3 py-1 bg-cyan-500/20 text-cyan-400 rounded-full text-[10px] font-black uppercase tracking-widest border border-cyan-500/30">Gemini AI Lens</span>
+                    <span class="text-white/40 text-[10px] font-bold uppercase tracking-widest italic">${new Date().toLocaleDateString('vi-VN')}</span>
                 </div>
-                <button onclick="speak('${result.en.replace(/'/g, "\\'")}', 'en-US', 'title-en')" class="p-6 bg-cyan-500 rounded-[24px] text-black shadow-lg active:scale-95 transition-all">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 10v3a1 1 0 0 0 1 1h1.5L9 19V5l-4.5 5H3a1 1 0 0 0-1 1Z"/><path d="M11 14c.64.1 1.39.3 2.5 1.5"/><path d="M11 10c.64-.1 1.39-.3 2.5-1.5"/><path d="M15 8c.5 1 1.5 2 1.5 4s-1 3-1.5 4"/><path d="M19 5c1 2 2.5 4 2.5 7s-1.5 5-2.5 7"/></svg>
+                <h1 id="title-en" class="text-6xl md:text-8xl font-black text-white leading-none mb-4 tracking-tighter">${result.en}</h1>
+                <div class="flex items-center gap-6">
+                    <p class="text-2xl font-mono text-white/40 tracking-widest">${result.ipa}</p>
+                    <div class="h-1 w-12 bg-cyan-500/30 rounded-full"></div>
+                    <p class="text-4xl font-black text-cyan-400 drop-shadow-[0_0_15px_rgba(34,211,238,0.4)]">${result.vi}</p>
+                </div>
+            </div>
+            <div class="flex gap-4 animate-in" style="animation-delay: 0.2s">
+                <button onclick="readAll()" class="px-8 py-5 bg-white text-black rounded-[24px] font-black uppercase text-xs tracking-widest flex items-center gap-3 hover:bg-cyan-400 transition-all active:scale-95 shadow-[0_20px_40px_rgba(255,255,255,0.1)]">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1v22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                    Học tất cả
                 </button>
-            </div>
-
-            <div class="space-y-8 mb-12">
-                <!-- Expert Insights -->
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    ${result.expert_insights?.scientific ? `
-                        <div class="bg-white/5 rounded-[32px] p-6 border border-white/5">
-                            <h3 class="text-blue-400 uppercase text-[10px] font-black tracking-widest mb-3">Khoa học</h3>
-                            <p class="text-white/80 text-sm leading-relaxed">${result.expert_insights.scientific}</p>
-                        </div>
-                    ` : ''}
-                    ${result.expert_insights?.medical ? `
-                        <div class="bg-red-500/10 rounded-[32px] p-6 border border-red-500/20">
-                            <h3 class="text-red-400 uppercase text-[10px] font-black tracking-widest mb-3">Y tế</h3>
-                            <p class="text-white/80 text-sm leading-relaxed">${result.expert_insights.medical}</p>
-                        </div>
-                    ` : ''}
-                    ${result.expert_insights?.technical ? `
-                        <div class="bg-white/5 rounded-[32px] p-6 border border-white/5">
-                            <h3 class="text-cyan-400 uppercase text-[10px] font-black tracking-widest mb-3">Kỹ thuật</h3>
-                            <p class="text-white/80 text-sm leading-relaxed">${result.expert_insights.technical}</p>
-                        </div>
-                    ` : ''}
-                    ${result.expert_insights?.educational ? `
-                        <div class="bg-white/5 rounded-[32px] p-6 border border-white/5">
-                            <h3 class="text-yellow-400 uppercase text-[10px] font-black tracking-widest mb-3">Giáo dục</h3>
-                            <p class="text-white/80 text-sm leading-relaxed">${result.expert_insights.educational}</p>
-                        </div>
-                    ` : ''}
-                </div>
-
-                ${result.expert_insights?.fashion ? `
-                    <div class="bg-purple-500/10 rounded-[32px] p-8 border border-purple-500/20">
-                        <h3 class="text-purple-400 uppercase text-[10px] font-black tracking-widest mb-6">Fashion Specialist Analysis</h3>
-                        <div class="grid grid-cols-2 gap-4 mb-4">
-                            <div class="bg-black/20 p-4 rounded-2xl border border-white/5">
-                                <span class="text-[8px] text-white/40 block">Lứa tuổi</span>
-                                <span class="font-bold text-white">${result.expert_insights.fashion.age_group}</span>
-                            </div>
-                            <div class="bg-black/20 p-4 rounded-2xl border border-white/5">
-                                <span class="text-[8px] text-white/40 block">Giá tiền</span>
-                                <span class="font-bold text-cyan-400">${result.expert_insights.fashion.estimated_price}</span>
-                            </div>
-                        </div>
-                        <div class="p-6 bg-purple-500/5 rounded-2xl border border-purple-500/10">
-                            <h3 class="text-[8px] text-purple-400/60 uppercase mb-2">Nhận xét phong cách</h3>
-                            <p class="text-xl font-bold text-purple-50">${result.expert_insights.fashion.style_analysis}</p>
-                        </div>
-                    </div>
-                ` : ''}
-
-                <div class="bg-white/5 rounded-[40px] p-8 border border-white/5">
-                    <div class="flex items-center justify-between mb-6">
-                        <h2 class="text-cyan-400/80 uppercase text-xs font-black tracking-widest flex items-center gap-2">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
-                            Phân tích ngoại hình
-                        </h2>
-                        <div class="flex gap-2">
-                            <button onclick="speak('${result.details_en.replace(/'/g, "\\'")}', 'en-US', 'details-en')" class="p-2 bg-white/10 rounded-xl hover:bg-cyan-500/20 transition-colors">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 10v3a1 1 0 0 0 1 1h1.5L9 19V5l-4.5 5H3a1 1 0 0 0-1 1Z"/><path d="M11 14c.64.1 1.39.3 2.5 1.5"/><path d="M11 10c.64-.1 1.39-.3 2.5-1.5"/><path d="M15 8c.5 1 1.5 2 1.5 4s-1 3-1.5 4"/><path d="M19 5c1 2 2.5 4 2.5 7s-1.5 5-2.5 7"/></svg>
-                            </button>
-                            <button onclick="speak('${result.details_vi.replace(/'/g, "\\'")}', 'vi-VN', 'details-vi')" class="p-2 bg-white/10 rounded-xl hover:bg-cyan-500/20 transition-colors">
-                                <span class="text-[10px] font-bold">VI</span>
-                            </button>
-                        </div>
-                    </div>
-                    <p id="details-en" class="text-2xl font-bold leading-relaxed mb-6 text-white/90">${result.details_en}</p>
-                    <p id="details-vi" class="text-2xl font-medium leading-relaxed text-white/60 border-t border-white/5 pt-6">${result.details_vi}</p>
-                </div>
-
-                ${result.is_human ? `
-                <div class="bg-cyan-500/10 rounded-[40px] p-8 border border-cyan-500/20">
-                    <div class="flex items-center justify-between mb-6">
-                        <h2 class="text-cyan-400 uppercase text-xs font-black tracking-widest flex items-center gap-2">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-                            Dự đoán đời sống (AI)
-                        </h2>
-                        <div class="flex gap-2">
-                            <button onclick="speak('${(result.predictions_en || "").replace(/'/g, "\\'")}', 'en-US', 'pred-en')" class="p-2 bg-white/10 rounded-xl hover:bg-cyan-500/20 transition-colors">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 10v3a1 1 0 0 0 1 1h1.5L9 19V5l-4.5 5H3a1 1 0 0 0-1 1Z"/><path d="M11 14c.64.1 1.39.3 2.5 1.5"/><path d="M11 10c.64-.1 1.39-.3 2.5-1.5"/><path d="M15 8c.5 1 1.5 2 1.5 4s-1 3-1.5 4"/><path d="M19 5c1 2 2.5 4 2.5 7s-1.5 5-2.5 7"/></svg>
-                            </button>
-                            <button onclick="speak('${(result.predictions_vi || "").replace(/'/g, "\\'")}', 'vi-VN', 'pred-vi')" class="p-2 bg-white/10 rounded-xl hover:bg-cyan-500/20 transition-colors">
-                                <span class="text-[10px] font-bold">VI</span>
-                            </button>
-                        </div>
-                    </div>
-                    <p id="pred-en" class="text-3xl font-black text-cyan-100 mb-4">${result.predictions_en || ''}</p>
-                    <p id="pred-vi" class="text-3xl font-bold text-cyan-400/80 border-t border-cyan-400/10 pt-6">${result.predictions_vi || ''}</p>
-                </div>
-                ` : ''}
-            </div>
-
-            <div class="mb-12">
-                <div class="flex items-center justify-between mb-6">
-                    <h2 class="text-white/40 uppercase text-xs font-black tracking-widest flex items-center gap-2">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m13 2-2 2.5h3L12 7h3l-4 5h3l-2 7h2l4.2-11H15l3-4.5h-3l2-2.5h-4Z"/></svg>
-                        Cấu trúc câu ví dụ
-                    </h2>
-                    <button onclick="speak('${result.example_en.replace(/'/g, "\\'")}', 'en-US', 'example-en')" class="p-2 bg-white/10 rounded-xl hover:bg-cyan-500/20 transition-colors">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 10v3a1 1 0 0 0 1 1h1.5L9 19V5l-4.5 5H3a1 1 0 0 0-1 1Z"/><path d="M11 14c.64.1 1.39.3 2.5 1.5"/><path d="M11 10c.64-.1 1.39-.3 2.5-1.5"/><path d="M15 8c.5 1 1.5 2 1.5 4s-1 3-1.5 4"/><path d="M19 5c1 2 2.5 4 2.5 7s-1.5 5-2.5 7"/></svg>
-                    </button>
-                </div>
-                <div class="bg-white/5 rounded-[40px] p-8 border border-white/5">
-                    <p id="example-en" class="text-3xl font-black text-white/90 italic leading-tight mb-6">${result.example_en}</p>
-                    <p class="text-xl text-white/40 border-t border-white/5 pt-6">${result.example_vi}</p>
-                </div>
-            </div>
-
-            <div>
-                <h2 class="text-white/40 uppercase text-xs font-black tracking-widest mb-6 flex items-center gap-2">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5Z"/><path d="M8 7h6"/><path d="M8 11h8"/></svg>
-                    Từ vựng chuyên sâu
-                </h2>
-                <div class="space-y-6">
-                    ${(result.vocabulary_breakdown || []).map((v, i) => `
-                        <div class="bg-white/5 p-8 rounded-[40px] border border-white/5 flex items-center justify-between group">
-                            <div class="flex-1 pr-6">
-                                <div class="flex items-center gap-3 mb-2">
-                                    <span id="vocab-${i}" class="text-2xl font-black text-cyan-400">${v.term}</span>
-                                    <span class="text-[10px] px-3 py-1 bg-cyan-400/20 text-cyan-400 rounded-xl font-black uppercase">${v.type}</span>
-                                </div>
-                                <p class="text-base font-mono opacity-40 mb-2">${v.ipa}</p>
-                                <p class="text-xl font-semibold text-white/90">${v.meaning_vi}</p>
-                            </div>
-                            <button onclick="speak('${v.term.replace(/'/g, "\\'")}', 'en-US', 'vocab-${i}')" class="p-5 bg-white/5 rounded-[20px] hover:bg-cyan-500/20 transition-all">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 10v3a1 1 0 0 0 1 1h1.5L9 19V5l-4.5 5H3a1 1 0 0 0-1 1Z"/><path d="M11 14c.64.1 1.39.3 2.5 1.5"/><path d="M11 10c.64-.1 1.39-.3 2.5-1.5"/><path d="M15 8c.5 1 1.5 2 1.5 4s-1 3-1.5 4"/><path d="M19 5c1 2 2.5 4 2.5 7s-1.5 5-2.5 7"/></svg>
-                            </button>
-                        </div>
-                    `).join('')}
-                </div>
+                <button onclick="speak('${result.en.replace(/'/g, "\\'")}', 'en-US', 'title-en')" class="p-5 bg-cyan-500 text-black rounded-[24px] hover:scale-105 transition-all active:scale-90 shadow-lg shadow-cyan-500/30">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
+                </button>
             </div>
         </div>
     </div>
 
-    <div class="text-white/20 text-sm font-bold uppercase tracking-widest">Generated by Gemini AR Lens</div>
+    <!-- Main Content Grid -->
+    <main class="max-w-7xl mx-auto px-6 md:px-12 grid grid-cols-1 lg:grid-cols-12 gap-12 mt-12">
+        
+        <!-- Left Column: Content -->
+        <div class="lg:col-span-8 space-y-16">
+            
+            <!-- DescriptionSection -->
+            <section class="animate-in" style="animation-delay: 0.3s">
+                <div class="flex items-center gap-4 mb-8">
+                    <h2 class="text-xs font-black uppercase tracking-[0.2em] text-white/40">Phân tích chi tiết</h2>
+                    <div class="flex-1 h-px bg-white/5"></div>
+                    <div class="flex gap-2">
+                        <button onclick="speak('${result.details_en.replace(/'/g, "\\'")}', 'en-US', 'details-en')" class="p-2 bg-white/5 rounded-lg hover:bg-white/10 transition-colors">
+                            <span class="text-[10px] font-bold">EN</span>
+                        </button>
+                        <button onclick="speak('${result.details_vi.replace(/'/g, "\\'")}', 'vi-VN', 'details-vi')" class="p-2 bg-white/5 rounded-lg hover:bg-white/10 transition-colors">
+                            <span class="text-[10px] font-bold">VI</span>
+                        </button>
+                    </div>
+                </div>
+                <div class="p-10 glass rounded-[48px] space-y-8">
+                    <p id="details-en" class="text-3xl font-bold leading-tight text-white/90">${result.details_en}</p>
+                    <p id="details-vi" class="text-2xl font-medium leading-relaxed text-white/50 border-t border-white/5 pt-8">${result.details_vi}</p>
+                </div>
+            </section>
 
+            <!-- Grammar Section -->
+            <section class="animate-in" style="animation-delay: 0.4s">
+                <h2 class="text-xs font-black uppercase tracking-[0.2em] text-white/40 mb-8 flex items-center gap-3">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m13 2-2 2.5h3L12 7h3l-4 5h3l-2 7h2l4.2-11H15l3-4.5h-3l2-2.5h-4Z"/></svg>
+                    Phân tích ngữ pháp
+                </h2>
+                <div class="flex flex-wrap gap-3">
+                    ${(result.grammar_analysis || []).map(g => `
+                        <div class="group relative px-6 py-4 glass rounded-2xl cursor-default hover:border-cyan-500/40 transition-all">
+                            <span class="text-xl font-bold text-white mb-1 block">${g.text}</span>
+                            <span class="text-[8px] font-black uppercase tracking-widest text-cyan-400/60">${g.type}</span>
+                            <!-- Tooltip/Popver -->
+                            <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-4 w-48 p-4 bg-white text-black text-xs font-bold rounded-xl opacity-0 translate-y-2 pointer-events-none group-hover:opacity-100 group-hover:translate-y-0 transition-all z-50 shadow-2xl">
+                                ${g.explanation_vi}
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            </section>
+
+            <!-- Expert Insights Tabs -->
+            <section class="animate-in" style="animation-delay: 0.5s">
+                <h2 class="text-xs font-black uppercase tracking-[0.2em] text-white/40 mb-8">Góc nhìn chuyên gia</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    ${result.expert_insights?.scientific_vi ? `
+                        <div class="p-8 glass rounded-[40px] border-l-4 border-l-blue-500">
+                            <div class="flex justify-between items-start mb-4">
+                                <h3 class="text-blue-400 font-black uppercase text-[10px] tracking-widest">Scientific</h3>
+                                <button onclick="speak('${result.expert_insights?.scientific_en?.replace(/'/g, "\\'")}', 'en-US', 'sci-txt')" class="text-white/20 hover:text-white transition-colors">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>
+                                </button>
+                            </div>
+                            <p id="sci-txt" class="text-white/80 leading-relaxed">${result.expert_insights.scientific_vi}</p>
+                        </div>
+                    ` : ''}
+                    ${result.expert_insights?.medical_vi ? `
+                        <div class="p-8 glass rounded-[40px] border-l-4 border-l-red-500">
+                            <div class="flex justify-between items-start mb-4">
+                                <h3 class="text-red-400 font-black uppercase text-[10px] tracking-widest">Medical</h3>
+                                <button onclick="speak('${result.expert_insights?.medical_en?.replace(/'/g, "\\'")}', 'en-US', 'med-txt')" class="text-white/20 hover:text-white transition-colors">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>
+                                </button>
+                            </div>
+                            <p id="med-txt" class="text-white/80 leading-relaxed">${result.expert_insights.medical_vi}</p>
+                        </div>
+                    ` : ''}
+                    ${result.expert_insights?.technical_vi ? `
+                        <div class="p-8 glass rounded-[40px] border-l-4 border-l-cyan-500">
+                            <div class="flex justify-between items-start mb-4">
+                                <h3 class="text-cyan-400 font-black uppercase text-[10px] tracking-widest">Technical</h3>
+                                <button onclick="speak('${result.expert_insights?.technical_en?.replace(/'/g, "\\'")}', 'en-US', 'tech-txt')" class="text-white/20 hover:text-white transition-colors">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>
+                                </button>
+                            </div>
+                            <p id="tech-txt" class="text-white/80 leading-relaxed">${result.expert_insights.technical_vi}</p>
+                        </div>
+                    ` : ''}
+                    ${result.expert_insights?.educational_vi ? `
+                        <div class="p-8 glass rounded-[40px] border-l-4 border-l-yellow-500">
+                            <div class="flex justify-between items-start mb-4">
+                                <h3 class="text-yellow-400 font-black uppercase text-[10px] tracking-widest">Educational</h3>
+                                <button onclick="speak('${result.expert_insights?.educational_en?.replace(/'/g, "\\'")}', 'en-US', 'edu-txt')" class="text-white/20 hover:text-white transition-colors">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>
+                                </button>
+                            </div>
+                            <p id="edu-txt" class="text-white/80 leading-relaxed">${result.expert_insights.educational_vi}</p>
+                        </div>
+                    ` : ''}
+                </div>
+            </section>
+
+            <!-- Food Additives (If any) -->
+            ${result.expert_insights?.additives && result.expert_insights.additives.length > 0 ? `
+            <section class="animate-in" style="animation-delay: 0.6s">
+                <h2 class="text-xs font-black uppercase tracking-[0.2em] text-red-400 mb-8 flex items-center gap-3">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m12 14 4-4"/><path d="M3.34 19a10 10 0 1 1 17.32 0"/><path d="m9.05 14.28 4.49 4.49"/><path d="m14.53 14.53-4.49-4.49"/></svg>
+                    Danh sách phụ gia độc tính
+                </h2>
+                <div class="space-y-4">
+                    ${result.expert_insights.additives.map(a => `
+                        <div class="p-10 glass rounded-[48px] border-red-500/20 bg-red-500/5">
+                            <div class="flex items-center gap-4 mb-6">
+                                <span class="text-3xl font-black text-red-500">${a.code}</span>
+                                <div class="h-1 w-8 bg-red-500/20"></div>
+                                <h3 class="text-xl font-bold text-white">${a.name}</h3>
+                            </div>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                <div>
+                                    <h4 class="text-[8px] font-black uppercase tracking-widest text-red-400/60 mb-2">Chức năng</h4>
+                                    <p class="text-sm text-white/80">${a.function}</p>
+                                </div>
+                                <div>
+                                    <h4 class="text-[8px] font-black uppercase tracking-widest text-red-400/60 mb-2">Tác hại</h4>
+                                    <p class="text-sm text-white/80 italic">${a.harmful_effects}</p>
+                                </div>
+                                <div class="md:col-span-2 p-6 bg-black/40 rounded-[32px] border border-white/5">
+                                    <div class="grid grid-cols-2 md:grid-cols-3 gap-6">
+                                        <div>
+                                            <span class="block text-[8px] text-white/30 uppercase mb-1">Gới hạn (ADI)</span>
+                                            <span class="font-bold text-cyan-400">${a.dosage}</span>
+                                        </div>
+                                        <div>
+                                            <span class="block text-[8px] text-white/30 uppercase mb-1">Thải độc</span>
+                                            <span class="font-bold text-cyan-400">${a.metabolism_time}</span>
+                                        </div>
+                                        <div class="col-span-2 md:col-span-1">
+                                            <span class="block text-[8px] text-white/30 uppercase mb-1">Rủi ro dài hạn</span>
+                                            <span class="font-bold text-red-400">${a.long_term_risks}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            </section>
+            ` : ''}
+
+            <!-- Exercises -->
+            <section id="exercises" class="animate-in" style="animation-delay: 0.7s">
+                <h2 class="text-xs font-black uppercase tracking-[0.2em] text-white/40 mb-8">Thử thách trí tuệ</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    ${(result.exercises || []).map((ex, i) => `
+                        <div class="exercise-card p-10 glass rounded-[48px] border border-white/5 relative overflow-hidden group">
+                            <div class="flex items-center gap-3 mb-6">
+                                <span class="w-8 h-8 rounded-full bg-cyan-500 text-black flex items-center justify-center font-black text-xs">${i+1}</span>
+                                <span class="text-[8px] font-black uppercase tracking-widest text-white/40">${ex.type}</span>
+                            </div>
+                            <p class="text-xl font-bold text-white leading-snug mb-8">${ex.question}</p>
+                            <div class="space-y-3">
+                                ${ex.options.map((opt, oi) => `
+                                    <button onclick="checkAnswer(${i}, '${opt.replace(/'/g, "\\'")}', this)" class="w-full text-left p-5 rounded-2xl bg-white/5 hover:bg-white/10 transition-all font-bold text-sm flex justify-between items-center group/btn">
+                                        <span>${opt}</span>
+                                        <div class="w-4 h-4 rounded-full border-2 border-white/10 group-hover/btn:border-cyan-500 transition-colors"></div>
+                                    </button>
+                                `).join('')}
+                            </div>
+                            <!-- Feedback UI (Hidden) -->
+                            <div id="feedback-${i}" class="absolute inset-0 bg-black/90 flex flex-col items-center justify-center p-8 text-center opacity-0 pointer-events-none transition-opacity duration-300">
+                                <div id="status-icon-${i}" class="mb-6"></div>
+                                <h4 id="status-text-${i}" class="text-3xl font-black mb-4"></h4>
+                                <p id="status-explain-${i}" class="text-white/60 mb-8 leading-relaxed"></p>
+                                <button onclick="resetExercise(${i})" class="px-8 py-4 bg-white text-black rounded-2xl font-black uppercase text-[10px] tracking-widest">Thử lại</button>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            </section>
+        </div>
+
+        <!-- Right Column: Sidebar -->
+        <aside class="lg:col-span-4 space-y-12">
+            
+            <!-- Key Lessons -->
+            <section class="animate-in" style="animation-delay: 0.8s">
+                <h2 class="text-xs font-black uppercase tracking-[0.2em] text-white/40 mb-6">Bài học cốt lõi</h2>
+                <div class="space-y-4">
+                    ${(result.main_lessons || []).map(lesson => `
+                        <div class="p-6 glass rounded-[32px]">
+                            <h3 class="font-black text-cyan-400 uppercase text-[10px] tracking-widest mb-2">${lesson.title}</h3>
+                            <p class="text-white/80 text-sm leading-relaxed">${lesson.content}</p>
+                        </div>
+                    `).join('')}
+                </div>
+            </section>
+
+            <!-- Vocabulary Section -->
+            <section class="animate-in" style="animation-delay: 0.9s">
+                <h2 class="text-xs font-black uppercase tracking-[0.2em] text-white/40 mb-6 flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5Z"/><path d="M8 7h6"/><path d="M8 11h8"/></svg>
+                    Từ vựng thông minh
+                </h2>
+                <div class="space-y-4">
+                    ${(result.vocabulary_breakdown || []).map((v, i) => `
+                        <div class="p-6 glass rounded-[32px] group">
+                            <div class="flex justify-between items-start mb-3">
+                                <div>
+                                    <p id="v-${i}" class="text-xl font-black text-white group-hover:text-cyan-400 transition-colors">${v.term}</p>
+                                    <p class="text-[8px] font-mono opacity-40 uppercase tracking-widest">${v.type} • ${v.ipa}</p>
+                                </div>
+                                <button onclick="speak('${v.term.replace(/'/g, "\\'")}', 'en-US', 'v-${i}')" class="p-2 bg-white/5 rounded-lg text-white/20 hover:text-cyan-400 hover:bg-cyan-500/10 transition-all">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>
+                                </button>
+                            </div>
+                            <p class="text-white/60 font-medium">${v.meaning_vi}</p>
+                        </div>
+                    `).join('')}
+                </div>
+            </section>
+
+            <!-- Example Sentence -->
+            <section class="animate-in" style="animation-delay: 1.0s">
+                 <div class="p-8 glass rounded-[40px] bg-cyan-500/[0.03] border-cyan-500/10">
+                    <h3 class="text-[8px] font-black uppercase tracking-widest text-cyan-400/60 mb-4">Cấu trúc áp dụng</h3>
+                    <p id="ex-txt" class="text-2xl font-black text-cyan-100 leading-tight mb-4 italic">"${result.example_en}"</p>
+                    <p class="text-white/40 text-sm leading-relaxed">${result.example_vi}</p>
+                    <button onclick="speak('${result.example_en.replace(/'/g, "\\'")}', 'en-US', 'ex-txt')" class="mt-6 w-full py-4 bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all">
+                        Phát âm câu ví dụ
+                    </button>
+                 </div>
+            </section>
+
+            <!-- Predictions -->
+             ${result.predictions_vi ? `
+                <section class="animate-in" style="animation-delay: 1.1s">
+                    <div class="p-8 glass rounded-[40px] bg-purple-500/[0.05] border-purple-500/20">
+                        <h3 class="text-[8px] font-black uppercase tracking-widest text-purple-400/60 mb-4">Dự đoán đa chiều</h3>
+                        <p id="pred-txt" class="text-xl font-bold text-purple-100 leading-snug mb-4">${result.predictions_en}</p>
+                        <p class="text-white/40 text-xs italic">${result.predictions_vi}</p>
+                        <button onclick="speak('${result.predictions_en.replace(/'/g, "\\'")}', 'en-US', 'pred-txt')" class="mt-6 w-full py-4 bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all">
+                            Đọc AI Predictions
+                        </button>
+                    </div>
+                </section>
+             ` : ''}
+
+        </aside>
+    </main>
+
+    <!-- Footer -->
+    <footer class="mt-24 pb-12 border-t border-white/5 pt-12 flex flex-col items-center">
+        <div class="flex items-center gap-4 mb-4">
+            <div class="w-12 h-px bg-white/10"></div>
+            <span class="text-xs font-black uppercase tracking-[0.3em] text-white/20">Gemini Pro Learning Experience</span>
+            <div class="w-12 h-px bg-white/10"></div>
+        </div>
+        <p class="text-[8px] font-black uppercase text-white/10 tracking-[0.5em]">AIS BUILD • 2026</p>
+    </footer>
+
+    <!-- Exercise Answers Data -->
     <script>
+        const EXERCISES = ${JSON.stringify(result.exercises)};
+        
+        function checkAnswer(exIndex, answer, btn) {
+            const exercise = EXERCISES[exIndex];
+            const feedback = document.getElementById('feedback-' + exIndex);
+            const icon = document.getElementById('status-icon-' + exIndex);
+            const title = document.getElementById('status-text-' + exIndex);
+            const explain = document.getElementById('status-explain-' + exIndex);
+            
+            feedback.style.opacity = '1';
+            feedback.style.pointerEvents = 'auto';
+            
+            if (answer === exercise.correct_answer) {
+                icon.innerHTML = '<div class="w-20 h-20 bg-green-500 rounded-full flex items-center justify-center text-black"><svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></div>';
+                title.innerText = 'CHÍNH XÁC!';
+                title.className = 'text-green-500 text-4xl font-black mb-4';
+                explain.innerText = exercise.explanation;
+            } else {
+                icon.innerHTML = '<div class="w-20 h-20 bg-red-500 rounded-full flex items-center justify-center text-white"><svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></div>';
+                title.innerText = 'TIẾC QUÁ!';
+                title.className = 'text-red-500 text-4xl font-black mb-4';
+                explain.innerText = 'Bạn chọn sai rồi. Thử suy nghĩ lại nhé!';
+            }
+        }
+
+        function resetExercise(exIndex) {
+            const feedback = document.getElementById('feedback-' + exIndex);
+            feedback.style.opacity = '0';
+            feedback.style.pointerEvents = 'none';
+        }
+
+        // Speech Engine
         function getBestVoice(langCode) {
             const voices = window.speechSynthesis.getVoices();
             const langPrefix = langCode.split('-')[0];
             const filtered = voices.filter(v => v.lang.startsWith(langPrefix));
-            
             const priorities = ['Samantha', 'Aria', 'Jenny', 'Google US English', 'Victoria', 'Zira', 'Female', 'Alex', 'Guy', 'Microsoft David', 'Male'];
-
             for (const name of priorities) {
                 const found = filtered.find(v => v.name.includes(name) && v.localService);
                 if (found) return found;
@@ -1244,42 +1226,63 @@ const App: React.FC = () => {
             const voice = getBestVoice(lang);
             if (voice) {
                 utterance.voice = voice;
-                utterance.lang = voice.lang;
-            } else {
-                utterance.lang = lang;
             }
+            utterance.lang = lang;
             utterance.rate = 0.9;
             
             const element = document.getElementById(elementId);
-            const originalHTML = element.innerHTML;
-            const originalText = text;
-
-            utterance.onboundary = (event) => {
-                if (event.name === 'word') {
-                    const charIndex = event.charIndex;
-                    let charLength = event.charLength;
-                    if (charLength === undefined || charLength === 0) {
-                        const remaining = originalText.substring(charIndex);
-                        const nextBoundary = remaining.search(/[\\s,.;:!?()[\\]{}]/);
-                        charLength = nextBoundary === -1 ? remaining.length : nextBoundary;
+            if (element) {
+                const originalHTML = element.innerHTML;
+                utterance.onboundary = (event) => {
+                    if (event.name === 'word') {
+                        const charIndex = event.charIndex;
+                        let charLength = event.charLength;
+                        if (charLength === undefined || charLength === 0) {
+                            const remaining = text.substring(charIndex);
+                            const nextBoundary = remaining.search(/[\\s,.;:!?()[\\]{}]/);
+                            charLength = nextBoundary === -1 ? remaining.length : nextBoundary;
+                        }
+                        const before = text.slice(0, charIndex);
+                        const active = text.slice(charIndex, charIndex + charLength);
+                        const after = text.slice(charIndex + charLength);
+                        element.innerHTML = before + '<span class="highlight">' + active + '</span>' + after;
                     }
-                    
-                    const before = originalText.slice(0, charIndex);
-                    const active = originalText.slice(charIndex, charIndex + charLength);
-                    const after = originalText.slice(charIndex + charLength);
-                    
-                    element.innerHTML = before + '<span class="highlight">' + active + '</span>' + after;
-                }
-            };
-
-            utterance.onend = () => {
-                element.innerHTML = originalHTML;
-            };
-
+                };
+                utterance.onend = () => { element.innerHTML = originalHTML; };
+            }
             window.speechSynthesis.speak(utterance);
         }
-        
-        // Load voices
+
+        function readAll() {
+            const queue = [
+                {t: "${result.en}", l: "en-US", id: "title-en"},
+                {t: "Nghĩa là: ${result.vi}", l: "vi-VN", id: ""},
+                {t: "${result.details_en.replace(/'/g, "\\'")}", l: "en-US", id: "details-en"},
+                {t: "${result.details_vi.replace(/'/g, "\\'")}", l: "vi-VN", id: "details-vi"},
+                {t: "Example: ${result.example_en.replace(/'/g, "\\'")}", l: "en-US", id: "ex-txt"},
+                {t: "Nghĩa là: ${result.example_vi.replace(/'/g, "\\'")}", l: "vi-VN", id: ""}
+            ];
+            
+            let i = 0;
+            function next() {
+                if(i >= queue.length) return;
+                const item = queue[i++];
+                
+                const u = new SpeechSynthesisUtterance(item.t);
+                const voice = getBestVoice(item.l);
+                if(voice) u.voice = voice;
+                u.lang = item.l;
+                u.rate = 0.9;
+                
+                const el = item.id ? document.getElementById(item.id) : null;
+                u.onstart = () => { if(el) el.classList.add('highlight'); el?.scrollIntoView({behavior:'smooth', block:'center'}); };
+                u.onend = () => { if(el) el.classList.remove('highlight'); setTimeout(next, 500); };
+                window.speechSynthesis.speak(u);
+            }
+            window.speechSynthesis.cancel();
+            next();
+        }
+
         window.speechSynthesis.getVoices();
         window.speechSynthesis.onvoiceschanged = () => window.speechSynthesis.getVoices();
     </script>
@@ -1291,7 +1294,7 @@ const App: React.FC = () => {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `gemini-ar-lens-${result.en.toLowerCase().replace(/\s+/g, '-')}.html`;
+    a.download = `gemini-pro-learning-${result.en.toLowerCase().replace(/\s+/g, '-')}.html`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
